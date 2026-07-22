@@ -2624,15 +2624,16 @@ function startNewRound(roomId) {
 
   const leaderPlayer = room.players[room.leaderIndex];
 
-  // إرسال كود البداية مع استمرار تتبع الأرقام المتاحة
+  // إرسال كود البداية مع استمرار تتبع الأرقام المتاحة واسم القائد
   room.players.forEach((p) => {
     const isLeader = p.id === leaderPlayer.id;
     io.to(p.id).emit("roundStarted", {
       isLeader: isLeader,
+      leaderName: leaderPlayer.name || "القائد", // تمرير اسم القائد الحالي
       score: p.score,
       numberRange: room.numberRange,
       totalHunters: room.players.length - 1,
-      availableNumbers: room.availableNumbers, // إرسال الأرقام المتبقية للعميل
+      availableNumbers: room.availableNumbers,
     });
   });
 }

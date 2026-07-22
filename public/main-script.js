@@ -281,11 +281,12 @@ socket.on("roundStarted", (data) => {
 
     renderPeerCircles(data.totalHunters, 0);
   } else {
-    // إظهار واجهة الانتظار للصياد لحين تحديد القائد للرقم
+    // إظهار واجهة الانتظار للصياد وتثبيتها لحين تحديد القائد للرقم
     showOverlay("waitingPeers");
     const waitingText = overlays.waitingPeers?.querySelector("h3");
-    if (waitingText)
-      waitingText.innerText = "جاري اختيار الرقم من قبل القائد... ⏳";
+    if (waitingText) {
+      waitingText.innerText = `جاري اختيار الرقم من قبل القائد (${data.leaderName}) ⏳`;
+    }
 
     const targetDisplay = document.getElementById("target-number-display");
     if (targetDisplay) targetDisplay.innerText = "--";
@@ -541,63 +542,51 @@ function renderHunterGrid(range, availableList, active, targetNumber = null) {
   if (!gridContainer) return;
   gridContainer.innerHTML = "";
 
-  // 1. تجميع الأرقام المتاحة والأرقام المستبعدة
-  let validNumbers = [];
-  let usedNumbers = [];
+  // 1. إنشاء مصفوفة تحتوي على كل الأرقام من 1 إلى Range
+  let allNumbers = Array.from({ length: range }, (_, i) => i + 1);
 
-  for (let i = 1; i <= range; i++) {
-    if (availableList.includes(i)) {
-      validNumbers.push(i);
+  // 2. خلط جميع الأرقام ببعضها بشكل عشوائي كاملاً (المتاح والمستبعد معاً)
+  let shuffledNumbers = shuffleArray(allNumbers);
+
+  // 3. رسم جميع الأرقام حسب ترتيبها العشوائي المخلوط
+  shuffledNumbers.forEach((num) => {
+    const div = document.createElement("div");
+    const isAvailable = availableList.includes(num);
+
+    if (isAvailable) {
+      // الرقم متاح وقابل للاختيار
+      div.className = "num-item";
+      div.innerText = num;
+
+      if (active) {
+        div.onclick = () => {
+          if (
+            isCooldown ||
+            div.classList.contains("circled-wrong") ||
+            div.classList.contains("circled")
+          )
+            return;
+
+          if (num === targetNumber) {
+            div.classList.add("circled");
+            socket.emit("hunterFoundNumber", { roomId: currentRoomId });
+          } else {
+            AudioFX.playWrong();
+            div.classList.add("circled-wrong");
+
+            isCooldown = true;
+            setTimeout(() => {
+              isCooldown = false;
+            }, 1000);
+          }
+        };
+      }
     } else {
-      usedNumbers.push(i);
-    }
-  }
-
-  // 2. خلط الأرقام المتاحة فقط عشوائياً
-  let shuffledValid = shuffleArray(validNumbers);
-
-  // 3. رسم الأرقام المتاحة (القابلة للنقر)
-  shuffledValid.forEach((num) => {
-    const div = document.createElement("div");
-    div.className = "num-item";
-    div.innerText = num;
-
-    if (active) {
-      div.onclick = () => {
-        // إذا كان العنصر محدداً مسبقاً (صح أو خطأ) أو أثناء فترة الانتظار، يتجاهل الضغطة
-        if (
-          isCooldown ||
-          div.classList.contains("circled-wrong") ||
-          div.classList.contains("circled")
-        )
-          return;
-
-        if (num === targetNumber) {
-          div.classList.add("circled");
-          socket.emit("hunterFoundNumber", { roomId: currentRoomId });
-        } else {
-          AudioFX.playWrong();
-
-          // تلوين الرقم باللون الأحمر
-          div.classList.add("circled-wrong");
-
-          // كول داون ثانية واحدة لمنع الضغكات المتتالية السريعة جداً
-          isCooldown = true;
-          setTimeout(() => {
-            isCooldown = false;
-          }, 1000);
-        }
-      };
+      // الرقم مستبعد وتم اختياره في جولات سابقة
+      div.className = "num-item used-number disabled";
+      div.innerText = num;
     }
 
-    gridContainer.appendChild(div);
-  });
-
-  // 4. رسم الأرقام المستبعدة/المستخدمة سابقاً مع كلاس الخاص بها
-  usedNumbers.forEach((num) => {
-    const div = document.createElement("div");
-    div.className = "num-item used-number disabled";
-    div.innerText = num;
     gridContainer.appendChild(div);
   });
 }
