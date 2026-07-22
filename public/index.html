@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>لعبة الأرقام والمكيدة</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+
+        <!-- 1. الشاشة الرئيسية (إنشاء / انضمام) -->
+        <div id="view-main" class="app-view active-view">
+            <header class="app-header">
+                <h1>🎲 لعبة الأرقام والمكيدة</h1>
+            </header>
+
+            <main class="app-main">
+                <div class="card">
+                    <h2>مرحباً بك في اللعبة</h2>
+
+                    <!-- إنشاء لعبة جديدة -->
+                    <div class="main-option-box">
+                        <h3>إنشاء لعبة جديدة</h3>
+                        <div class="form-group">
+                            <label for="input-players-count">عدد
+                                اللاعبين:</label>
+                            <input type="number" id="input-players-count"
+                                min="2" max="10" value="4">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="input-numbers-range">نطاق الأرقام (بين
+                                10 و 200):</label>
+                            <input type="range" id="input-numbers-range"
+                                min="10" max="200" value="50"
+                                oninput="this.nextElementSibling.value = this.value">
+                            <output>50</output>
+                        </div>
+
+                        <button id="btn-create-game" class="primary-btn">إنشاء
+                            غرفة جديدة 🏠</button>
+                    </div>
+
+                    <hr
+                        style="border: 0; border-top: 1px solid var(--border-color, #334155); margin: 1rem 0;">
+
+                    <!-- الانضمام لغرفة -->
+                    <div class="main-option-box">
+                        <h3>أو الانضمام لغرفة حالية</h3>
+                        <div class="form-group">
+                            <label for="input-room-id">رمز الغرفة (Room
+                                ID):</label>
+                            <input type="text" id="input-room-id"
+                                placeholder="أدخل كود الغرفة" maxlength="6">
+                        </div>
+
+                        <button id="btn-join-game"
+                            class="primary-btn btn-secondary">انضمام للغرفة
+                            🔗</button>
+                    </div>
+                </div>
+            </main>
+
+            <footer class="app-footer">
+                <p>جميع الحقوق محفوظة &copy; 2026</p>
+            </footer>
+        </div>
+
+        <!-- 2. شاشة الانتظار للمضيف (Host Lobby) -->
+        <div id="view-host-lobby" class="app-view">
+            <header class="app-header">
+                <h2>غرفة الانتظار (المضيف)</h2>
+                <p class="room-code-wrapper">
+                    رمز الغرفة: <strong
+                        id="display-host-room-code">----</strong>
+                </p>
+            </header>
+
+            <main class="app-main">
+                <div class="card">
+                    <h3>قائمة اللاعبين المنضمين (<span
+                            id="joined-count">1</span>/<span
+                            id="max-count">4</span>)</h3>
+                    <ul id="host-players-list" class="players-status-list">
+                        <!-- تتولد عناصر الخانات الممتلئة والفاضية ديناميكياً عبر JS -->
+                    </ul>
+
+                    <!-- صندوق قوانين اللعبة للمضيف -->
+                    <div class="rules-box card-sub"
+                        style="margin-top: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                        <h4>📜 تعليمات المضيف:</h4>
+                        <ul
+                            style="font-size: 0.9rem; padding-right: 20px; line-height: 1.6;">
+                            <li>انتظر اكتمال عدد اللاعبين واستعدادهم لتبدأ
+                                اللعبة.</li>
+                            <li>ستتناوب الأدوار بين القائد والصيادين
+                                تلقائياً.</li>
+                        </ul>
+                    </div>
+
+                    <button id="btn-host-start-game"
+                        class="primary-btn disabled-btn" disabled
+                        style="margin-top: 15px;">
+                        بدء اللعب 🔥 (بانتظار اكتمال اللاعبين)
+                    </button>
+                </div>
+            </main>
+        </div>
+
+        <!-- 3. شاشة الاستعداد للاعب المنضم (Player Lobby) -->
+        <div id="view-player-lobby" class="app-view">
+            <header class="app-header">
+                <h2>الانضمام للغرفة</h2>
+                <p class="room-code-wrapper">
+                    رمز الغرفة: <strong
+                        id="display-player-room-code">----</strong>
+                </p>
+            </header>
+
+            <main class="app-main">
+                <div id="player-ready-card" class="card">
+                    <h3>أدخل اسمك للتجهيز</h3>
+                    <div class="form-group">
+                        <input type="text" id="input-player-name"
+                            placeholder="اكتب اسمك هنا..." required>
+                    </div>
+
+                    <!-- صندوق قوانين السريعة للعب -->
+                    <div class="rules-box card-sub"
+                        style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                        <h4>📜 طريقة اللعب:</h4>
+                        <ul
+                            style="font-size: 0.85rem; padding-right: 20px; line-height: 1.5;">
+                            <li><strong>القائد:</strong> يختار الرقم ويسعى
+                                للإجابة على الأسئلة لكسب النقاط.</li>
+                            <li><strong>الصياد:</strong> يبحث عن الرقم المطلوب
+                                في الشبكة بأسرع وقت.</li>
+                            <li>احذر من الضغط الخاطئ لتجنب التجميد المؤقت!</li>
+                        </ul>
+                    </div>
+
+                    <button id="btn-player-ready" class="primary-btn">أنا مستعد
+                        👍</button>
+                </div>
+            </main>
+        </div>
+
+        <!-- 4. شاشة القائد -->
+        <div id="view-leader" class="app-view">
+            <header class="app-header leader-header">
+                <div class="timer-box"
+                    style="margin-bottom: 10px; font-weight: bold; color: #ef4444;">
+                    ⏱️ الوقت المتبقي: <span class="timer-value">30</span> ثانية
+                </div>
+
+                <div class="peers-status-container">
+                    <span class="status-title">حالة الصيادين:</span>
+                    <div id="peers-circles-list" class="circles-group"></div>
+                </div>
+
+                <div class="score-board">
+                    <span>نقاطك كقائد: </span>
+                    <strong id="leader-score">0</strong>
+                </div>
+            </header>
+
+            <main class="app-main">
+                <div id="leader-number-selection" class="card">
+                    <h3>اختر الرقم المطلوب من النطاق:</h3>
+                    <div class="form-group">
+                        <input type="number" id="input-chosen-number"
+                            placeholder="أدخل الرقم هنا">
+                    </div>
+                    <button id="btn-submit-chosen-number"
+                        class="primary-btn">إرسال وبدء الأسئلة</button>
+                </div>
+
+                <div id="leader-trivia-box" class="card hidden">
+                    <p id="trivia-question-text" class="question-text">جاري
+                        تحميل السؤال...</p>
+                    <div class="answers-group"
+                        style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn-answer primary-btn"
+                            id="btn-answer-1">الإجابة الأولى</button>
+                        <button class="btn-answer primary-btn"
+                            id="btn-answer-2">الإجابة الثانية</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- 5. شاشة الصيادين -->
+        <div id="view-hunter" class="app-view">
+            <header class="app-header">
+                <div class="timer-box"
+                    style="margin-bottom: 10px; font-weight: bold; color: #ef4444;">
+                    ⏱️ الوقت المتبقي: <span class="timer-value">30</span> ثانية
+                </div>
+
+                <div class="score-board" style="margin-bottom: 10px;">
+                    <span>نقاطك: </span>
+                    <strong id="hunter-score">0</strong>
+                </div>
+
+                <div class="target-display">
+                    الرقم المطلوب: <span id="target-number-display">--</span>
+                </div>
+            </header>
+
+            <main class="app-main">
+                <div id="numbers-grid" class="numbers-paper"></div>
+            </main>
+        </div>
+
+        <!-- شاشة لوحة الصدارة النهائية -->
+        <div id="view-leaderboard" class="app-view">
+            <div class="card leaderboard-card">
+                <h1>🏆 لوحة الصدارة 🏆</h1>
+                <p class="subtitle">النتائج النهائية للعبة</p>
+
+                <div class="leaderboard-list" id="leaderboard-list">
+                    <!-- سيتم توليد قائمة القادة هنا تلقائياً -->
+                </div>
+
+                <button id="btn-back-to-main" class="primary-btn mt-4">العودة
+                    للرئيسية 🏠</button>
+            </div>
+        </div>
+
+        <!-- Overlays الشاشات العائمة -->
+        <div id="overlay-waiting-peers" class="overlay-view overlay">
+            <div class="overlay-card card">
+                <div class="spinner"></div>
+                <h3>جاري المعالجة... 🎯</h3>
+                <p>بانتظار خطوة اللاعبين التالية...</p>
+            </div>
+        </div>
+
+        <div id="overlay-turn-transition" class="overlay-view overlay">
+            <div class="overlay-card card">
+                <h3>انتهى الدور الحالي! ⏳</h3>
+                <p>جاري الانتقال للدور التالي خلال:</p>
+                <div id="countdown-timer" class="countdown-number"
+                    style="font-size: 3rem; font-weight: bold; color: #38bdf8;">5</div>
+            </div>
+        </div>
+
+        <!-- Socket.io والسكربت الرئيسي -->
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="main-script.js"></script>
+    </body>
+</html>
