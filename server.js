@@ -2657,9 +2657,13 @@ function startRoundTimer(roomId) {
 function sendNextQuestion(socket) {
   const q = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
   socket.currentCorrectAnswer = q.correct;
+
+  // خلط الخيارات عشوائياً لكي لا تكون الإجابة الصحيحة دائماً في جهة اليمين
+  const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+
   socket.emit("sendTriviaQuestion", {
     question: q.question,
-    options: q.options,
+    options: shuffledOptions,
   });
 }
 
