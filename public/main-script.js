@@ -161,7 +161,6 @@ function hideOverlays() {
   });
 }
 
-// خوارزمية لغبطة ترتيب الأرقام (Fisher-Yates Shuffle)
 function shuffleArray(array) {
   let shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -176,13 +175,10 @@ function shuffleArray(array) {
    ========================================== */
 document.getElementById("btn-create-game")?.addEventListener("click", () => {
   AudioFX.init();
-  const playersCount =
-    document.getElementById("input-players-count")?.value || 4;
   const numberRange =
     document.getElementById("input-numbers-range")?.value || 50;
 
   socket.emit("createGame", {
-    playersCount: parseInt(playersCount),
     numberRange: parseInt(numberRange),
   });
 });
@@ -263,10 +259,8 @@ socket.on("roundStarted", (data) => {
   hideOverlays();
   showScreen(data.isLeader ? "leader" : "hunter");
 
-  // حفظ قائمة الأرقام المتاحة القادمة من السيرفر
   currentAvailableNumbers = data.availableNumbers || [];
 
-  // تحديث وعرض النقاط دائماً
   myCurrentScore = data.score || 0;
   updateScoreDisplays(myCurrentScore);
 
@@ -281,7 +275,6 @@ socket.on("roundStarted", (data) => {
 
     renderPeerCircles(data.totalHunters, 0);
   } else {
-    // إظهار واجهة الانتظار للصياد وتثبيتها لحين تحديد القائد للرقم
     showOverlay("waitingPeers");
     const waitingText = overlays.waitingPeers?.querySelector("h3");
     if (waitingText) {
@@ -323,7 +316,6 @@ socket.on("sendTriviaQuestion", (questionData) => {
 
   if (qText) qText.innerText = questionData.question;
 
-  // إذا كان هناك حاوية للأزرار سنقوم بإعادة رسم الأزرار ديناميكياً
   if (optionsContainer) {
     optionsContainer.innerHTML = "";
     questionData.options.forEach((opt) => {
@@ -334,7 +326,6 @@ socket.on("sendTriviaQuestion", (questionData) => {
       optionsContainer.appendChild(btn);
     });
   } else {
-    // في حال كنت تستخدم الأزرار الثابتة بالأيدي (IDs)
     questionData.options.forEach((opt, idx) => {
       const btn = document.getElementById(`btn-answer-${idx + 1}`);
       if (btn) {
@@ -373,6 +364,10 @@ socket.on("hunterEarnedPoints", (data) => {
 
 socket.on("showTurnTransition", (data) => {
   hideOverlays();
+
+  const turnTitle = document.getElementById("turn-transition-title");
+  if (turnTitle) turnTitle.innerText = "انتهى الدور الحالي! ⏳";
+
   showOverlay("turnTransition");
 
   let count = data.countdown || 5;
@@ -389,13 +384,10 @@ socket.on("showTurnTransition", (data) => {
   }, 1000);
 });
 
-/* ==========================================
-   استقبال حدث نهاية اللعبة وتحديث اللوحة
-   ========================================== */
 socket.on("gameOver", (data) => {
   hideOverlays();
   AudioFX.playCorrect();
-  launchConfetti(); // إطلاق المفرقعات للترتيب النهائي
+  launchConfetti();
 
   const leaderboardList = document.getElementById("leaderboard-list");
   if (!leaderboardList) return;
@@ -403,14 +395,11 @@ socket.on("gameOver", (data) => {
 
   const leaderboard = data?.leaderboard || [];
 
-  // ترتيب اللاعبين حسب النقاط تنازلياً (في حال لم تكن مرتبة من السيرفر)
-  // وفي حال التعادل، يتم الترتيب حسب ظهورهم في المصفوفة لتجنب أي أخطاء
   leaderboard.sort((a, b) => (b.score || 0) - (a.score || 0));
 
   leaderboard.forEach((player, index) => {
     const item = document.createElement("div");
 
-    // تحديد الأيقونة والمظهر للمراكز الأولى
     let rankBadge = `${index + 1}`;
     let rankClass = "";
 
@@ -435,11 +424,9 @@ socket.on("gameOver", (data) => {
     leaderboardList.appendChild(item);
   });
 
-  // الانتقال المباشر لشاشة لوحة الصدارة
   showScreen("leaderboard");
 });
 
-// حدث زر العودة للرئيسية من لوحة الصدارة
 document.getElementById("btn-back-to-main")?.addEventListener("click", () => {
   showScreen("mainMenu");
 });
@@ -453,7 +440,9 @@ socket.on("errorMsg", (msg) => {
   alert(msg);
 });
 
-socket.on("playerLeftMsg", (msg) => alert(msg));
+socket.on("playerLeftMsg", (msg) => {
+  console.log(msg);
+});
 
 /* ==========================================
    6. الدوال المساعدة للرسم والتحديث
@@ -470,14 +459,13 @@ function updateLobbyUI(players, maxPlayers) {
   const joinedCountElem = document.getElementById("joined-count");
   const maxCountElem = document.getElementById("max-count");
   if (joinedCountElem) joinedCountElem.innerText = players.length;
-  if (maxCountElem) maxCountElem.innerText = maxPlayers;
+  if (maxCountElem) maxCountElem.innerText = maxPlayers || 15;
 
   const listContainer = document.getElementById("host-players-list");
   if (listContainer) {
     listContainer.innerHTML = "";
 
-    for (let i = 0; i < maxPlayers; i++) {
-      const p = players[i];
+    players.forEach((p, idx) => {
       const li = document.createElement("li");
       li.className = "player-status-item";
       li.style.display = "flex";
@@ -487,27 +475,20 @@ function updateLobbyUI(players, maxPlayers) {
       li.style.borderRadius = "8px";
       li.style.background = "rgba(15, 23, 42, 0.4)";
 
-      if (p) {
-        li.innerHTML = `
-          <span>${p.name} ${p.isHost ? "👑" : ""}</span>
-          <span style="color: ${p.isReady ? "#22c55e" : "#94a3b8"}">
-            ${p.isReady ? "مستعد ✅" : "بانتظار الاستعداد ⏳"}
-          </span>
-        `;
-      } else {
-        li.style.border = "1px dashed rgba(255, 255, 255, 0.2)";
-        li.innerHTML = `
-          <span style="color: #64748b;">خانة شاغرة (${i + 1})</span>
-          <span style="color: #64748b;">في انتظار الانضمام...</span>
-        `;
-      }
+      li.innerHTML = `
+        <span>${p.name} ${p.isHost ? "👑" : ""}</span>
+        <span style="color: ${p.isReady ? "#22c55e" : "#94a3b8"}">
+          ${p.isReady ? "مستعد ✅" : "بانتظار الاستعداد ⏳"}
+        </span>
+      `;
       listContainer.appendChild(li);
-    }
+    });
   }
 
   const startBtn = document.getElementById("btn-host-start-game");
   if (startBtn) {
     const allReady = players.every((p) => p.isReady || p.isHost);
+    // شرط البدء: وجود شخصين على الأقل وجاهزية الجميع
     if (players.length >= 2 && allReady) {
       startBtn.disabled = false;
       startBtn.classList.remove("disabled-btn");
@@ -515,7 +496,11 @@ function updateLobbyUI(players, maxPlayers) {
     } else {
       startBtn.disabled = true;
       startBtn.classList.add("disabled-btn");
-      startBtn.innerText = "بدء اللعب 🔥 (بانتظار اكتمال اللاعبين)";
+      if (players.length < 2) {
+        startBtn.innerText = "بدء اللعب 🔥 (بانتظار انضمام لاعب آخر على الأقل)";
+      } else {
+        startBtn.innerText = "بدء اللعب 🔥 (بانتظار استعداد باقي اللاعبين)";
+      }
     }
   }
 }
@@ -524,7 +509,6 @@ function submitAnswer(selectedOption) {
   if (isAnswering) return;
   isAnswering = true;
 
-  // تعطيل كل أزرار الإجابات لمنع الضغط المتعدد
   const allAnswerBtns = document.querySelectorAll(".btn-answer");
   allAnswerBtns.forEach((btn) => (btn.disabled = true));
 
@@ -552,19 +536,14 @@ function renderHunterGrid(range, availableList, active, targetNumber = null) {
   if (!gridContainer) return;
   gridContainer.innerHTML = "";
 
-  // 1. إنشاء مصفوفة تحتوي على كل الأرقام من 1 إلى Range
   let allNumbers = Array.from({ length: range }, (_, i) => i + 1);
-
-  // 2. خلط جميع الأرقام ببعضها بشكل عشوائي كاملاً (المتاح والمستبعد معاً)
   let shuffledNumbers = shuffleArray(allNumbers);
 
-  // 3. رسم جميع الأرقام حسب ترتيبها العشوائي المخلوط
   shuffledNumbers.forEach((num) => {
     const div = document.createElement("div");
     const isAvailable = availableList.includes(num);
 
     if (isAvailable) {
-      // الرقم متاح وقابل للاختيار
       div.className = "num-item";
       div.innerText = num;
 
@@ -592,7 +571,6 @@ function renderHunterGrid(range, availableList, active, targetNumber = null) {
         };
       }
     } else {
-      // الرقم مستبعد وتم اختياره في جولات سابقة
       div.className = "num-item used-number disabled";
       div.innerText = num;
     }

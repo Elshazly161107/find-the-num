@@ -7,32 +7,27 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// خدمة كافة ملفات الواجهة (HTML, CSS, JS) من مجلد public
 app.use(express.static(path.join(__dirname, "public")));
 
-// مسار الصفحة الرئيسية
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// تخزين بيانات الغرف
 const rooms = {};
-
-// أسئلة Trivia مع 4 خيارات لكل سؤال
 const triviaQuestions = require("./questions.json");
+const MAX_ROOM_PLAYERS = 15; // الحد الأقصى للاعبين في أي غرفة
 
 io.on("connection", (socket) => {
-  // 1. إنشاء غرفة جديدة
-  socket.on("createGame", ({ playersCount, numberRange }) => {
+  // 1. إنشاء غرفة جديدة (تم إلغاء تحديد عدد اللاعبين من المضيف)
+  socket.on("createGame", ({ numberRange }) => {
     const roomId = Math.floor(100000 + Math.random() * 900000).toString();
-    const rangeNum = parseInt(numberRange);
+    const rangeNum = parseInt(numberRange) || 50;
 
     rooms[roomId] = {
       roomId: roomId,
-      maxPlayers: parseInt(playersCount),
+      maxPlayers: MAX_ROOM_PLAYERS,
       numberRange: rangeNum,
       players: [],
-      // إنشاء مصفوفة بالأرقام المتاحة من 1 إلى الرينج المخصص
       availableNumbers: Array.from({ length: rangeNum }, (_, i) => i + 1),
       leaderIndex: 0,
       targetNumber: null,
@@ -55,17 +50,24 @@ io.on("connection", (socket) => {
 
     socket.emit("gameCreated", {
       roomId: roomId,
-      maxPlayers: playersCount,
+      maxPlayers: MAX_ROOM_PLAYERS,
       players: rooms[roomId].players,
     });
   });
 
-  // 2. انضمام لاعب للغرفة
+  // 2. انضمام لاعب للغرفة (بحد أقصى 15 لاعب)
   socket.on("joinRoom", ({ roomId }) => {
     const room = rooms[roomId];
     if (!room) return socket.emit("errorMsg", "الغرفة غير موجودة!");
-    if (room.players.length >= room.maxPlayers)
-      return socket.emit("errorMsg", "الغرفة ممتلئة!");
+    if (room.players.length >= MAX_ROOM_PLAYERS) {
+      return socket.emit("errorMsg", "الغرفة ممتلئة! الحد الأقصى 15 لاعب.");
+    }
+    if (room.isGameStarted) {
+      return socket.emit(
+        "errorMsg",
+        "اللعبة بدأت بالفعل، لا يمكنك الانضمام الآن!",
+      );
+    }
 
     socket.join(roomId);
     socket.emit("joinedRoom", { roomId: roomId });
@@ -80,24 +82,24 @@ io.on("connection", (socket) => {
     if (!player) {
       player = {
         id: socket.id,
-        name: name,
+        name: name || "لاعب",
         isHost: false,
         isReady: true,
         score: 0,
       };
       room.players.push(player);
     } else {
-      player.name = name;
+      player.name = name || player.name;
       player.isReady = true;
     }
 
     io.to(roomId).emit("updateLobby", {
       players: room.players,
-      maxPlayers: room.maxPlayers,
+      maxPlayers: MAX_ROOM_PLAYERS,
     });
   });
 
-  // 4. بدء اللعبة بواسطة المضيف
+  // 4. بدء اللعبة
   socket.on("startGame", ({ roomId }) => {
     const room = rooms[roomId];
     if (!room) return;
@@ -106,58 +108,47 @@ io.on("connection", (socket) => {
     startNewRound(roomId);
   });
 
-  // 5. استقبال رقم القائد والتحقق من النطاق والأرقام السابقة
+  // 5. اختيار القائد للرقم
   socket.on("submitLeaderNumber", ({ roomId, chosenNumber }) => {
     const room = rooms[roomId];
     if (!room) return;
 
     const num = parseInt(chosenNumber);
 
-    // أ) التحقق من وجود الرقم ومدى صحته
     if (isNaN(num)) {
       return socket.emit("errorMsg", "يرجى إدخال رقم صحيح!");
     }
 
-    // ب) التحقق من أن الرقم داخل النطاق المسموح (من 1 إلى numberRange)
     if (num < 1 || num > room.numberRange) {
-      return socket.emit(
-        "errorMsg",
-        `عذراً، يجب اختيار رقم بين 1 و ${room.numberRange}`,
-      );
+      return socket.emit("errorMsg", `اختر رقماً بين 1 و ${room.numberRange}`);
     }
 
-    // جـ) التحقق مما إذا كان الرقم قد تم اختياره سابقاً
     if (!room.availableNumbers.includes(num)) {
-      return socket.emit(
-        "errorMsg",
-        "هذا الرقم تم اختياره سابقاً! اختر رقماً آخر.",
-      );
+      return socket.emit("errorMsg", "هذا الرقم تم اختياره سابقاً!");
     }
 
-    // قبول الرقم وتخزينه
     room.targetNumber = num;
     socket.emit("leaderNumberAccepted");
 
-    // إرسال أول سؤال للقائد
     sendNextQuestion(socket);
 
-    // إطلاق إشعار للصيادين لبدء البحث
     io.to(roomId).emit("startHunting", {
       targetNumber: room.targetNumber,
       numberRange: room.numberRange,
       foundNumbers: [],
     });
 
-    // بدء العد التنازلي للبحث (30 ثانية)
     startRoundTimer(roomId);
   });
 
-  // 6. إجابة القائد على السؤال (1 نقطة لكل إجابة صحيحة)
+  // 6. إجابة القائد
   socket.on("answerTrivia", ({ roomId, selectedOption }) => {
     const room = rooms[roomId];
     if (!room) return;
 
     const leader = room.players[room.leaderIndex];
+    if (!leader || leader.id !== socket.id) return;
+
     const isCorrect = selectedOption === socket.currentCorrectAnswer;
 
     if (isCorrect) {
@@ -169,13 +160,12 @@ io.on("connection", (socket) => {
       newScore: leader.score,
     });
 
-    // إرسال السؤال التالي إذا كان الوقت مستمراً
     if (room.timeLeft > 0) {
       sendNextQuestion(socket);
     }
   });
 
-  // 7. صيد الرقم من قبل الصياد (10 للأول، 7 للثاني، 5 للثالث، 2 للبقية)
+  // 7. صيد الرقم بواسطة الصياد
   socket.on("hunterFoundNumber", ({ roomId }) => {
     const room = rooms[roomId];
     if (!room) return;
@@ -201,7 +191,6 @@ io.on("connection", (socket) => {
       });
     }
 
-    // تحديث دوائر التقدم لدى القائد
     const leader = room.players[room.leaderIndex];
     if (leader) {
       io.to(leader.id).emit("updateHuntersProgress", {
@@ -210,33 +199,123 @@ io.on("connection", (socket) => {
       });
     }
 
-    // إذا أوجد جميع الصيادين الرقم، إنهاء الدور فوراً
+    // إنهاء الجولة إذا وجد جميع الصيادين المتبقين الرقم
     if (room.foundHunters.length >= room.players.length - 1) {
       clearInterval(room.timer);
       endRound(roomId);
     }
   });
 
+  // 8. التعامل الكامل مع خروج أو انقطاع اتصال اللاعب (Disconnect)
   socket.on("disconnect", () => {
-    // إدارة خروج اللاعبين...
+    // البحث عن الغرفة التي ينتمي إليها هذا الـ socket
+    for (const roomId in rooms) {
+      const room = rooms[roomId];
+      const playerIndex = room.players.findIndex((p) => p.id === socket.id);
+
+      if (playerIndex !== -1) {
+        const disconnectedPlayer = room.players[playerIndex];
+        const wasLeader = room.leaderIndex === playerIndex;
+
+        // أ) إزالة اللاعب من الغرفة
+        room.players.splice(playerIndex, 1);
+
+        // ب) إزالته من قائمة من وجدوا الرقم في الجولة الحالية إن وجد
+        room.foundHunters = room.foundHunters.filter((id) => id !== socket.id);
+
+        // جـ) إذا أصبحت الغرفة فارغة تماماً، حذف الغرفة وإلغاء المؤقت
+        if (room.players.length === 0) {
+          clearInterval(room.timer);
+          delete rooms[roomId];
+          break;
+        }
+
+        // د) نقل الملكية (Host) إذا خرج المضيف وكان هناك لاعبون آخرون
+        if (disconnectedPlayer.isHost && room.players.length > 0) {
+          room.players[0].isHost = true;
+          io.to(room.players[0].id).emit("promotedToHost");
+        }
+
+        // إشعار بقية اللاعبين بخروج اللاعب
+        io.to(roomId).emit(
+          "playerLeftMsg",
+          `${disconnectedPlayer.name} غادر اللعبة.`,
+        );
+
+        // هـ) إذا كانت اللعبة قد بدأت بالفعل:
+        if (room.isGameStarted) {
+          // إذا كان متبقي أقل من 2 لاعبين، تنهى اللعبة فوراً
+          if (room.players.length < 2) {
+            clearInterval(room.timer);
+            io.to(roomId).emit(
+              "errorMsg",
+              "تم إنهاء اللعبة لعدم وجود عدد كافٍ من اللاعبين!",
+            );
+            return handleGameOver(roomId);
+          }
+
+          // إذا كان اللاعب المغادر هو "القائد" الحالي في الجولة:
+          if (wasLeader) {
+            clearInterval(room.timer);
+            // إعادة تعديل مؤشر القائد لئلا يتجاوز الحدود
+            if (room.leaderIndex >= room.players.length) {
+              room.leaderIndex = 0;
+            }
+            io.to(roomId).emit(
+              "errorMsg",
+              "انقطع اتصال القائد! جاري الانتقال للجولة التالية...",
+            );
+            endRound(roomId);
+            break;
+          }
+
+          // إذا كان الخارج "صياد":
+          // إذا تصادف أن خرج آخر صياد متبقٍ لم يجد الرقم، ننهي الجولة
+          if (room.foundHunters.length >= room.players.length - 1) {
+            clearInterval(room.timer);
+            endRound(roomId);
+            break;
+          } else {
+            // تحديث مؤشر تقدم الصيادين لدى القائد
+            const currentLeader = room.players[room.leaderIndex];
+            if (currentLeader) {
+              io.to(currentLeader.id).emit("updateHuntersProgress", {
+                totalHunters: room.players.length - 1,
+                foundCount: room.foundHunters.length,
+              });
+            }
+          }
+        } else {
+          // إذا كانت اللعبة ما زالت في اللوبي:
+          // ضبط مؤشر القائد والتحديث للجميع
+          if (room.leaderIndex >= room.players.length) {
+            room.leaderIndex = 0;
+          }
+          io.to(roomId).emit("updateLobby", {
+            players: room.players,
+            maxPlayers: MAX_ROOM_PLAYERS,
+          });
+        }
+
+        break;
+      }
+    }
   });
 });
 
-// === الدوال المساعدة في السيرفر ===
+// === الدوال المساعدة ===
 
 function startNewRound(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
-  // استبعاد الرقم المستخدم في الجولة السابقة بشكل دائم من قائمة المتاح
   if (room.targetNumber) {
     room.availableNumbers = room.availableNumbers.filter(
       (n) => n !== room.targetNumber,
     );
   }
 
-  // التحقق من انتهاء جميع الأرقام المتاحة لإسدال الستار على اللعبة
-  if (room.availableNumbers.length === 0) {
+  if (room.availableNumbers.length === 0 || room.players.length < 2) {
     return handleGameOver(roomId);
   }
 
@@ -244,14 +323,18 @@ function startNewRound(roomId) {
   room.targetNumber = null;
   room.timeLeft = 30;
 
+  // حماية مؤشر القائد في حال تغيّر عدد اللاعبين
+  if (room.leaderIndex >= room.players.length) {
+    room.leaderIndex = 0;
+  }
+
   const leaderPlayer = room.players[room.leaderIndex];
 
-  // إرسال كود البداية مع استمرار تتبع الأرقام المتاحة واسم القائد
   room.players.forEach((p) => {
     const isLeader = p.id === leaderPlayer.id;
     io.to(p.id).emit("roundStarted", {
       isLeader: isLeader,
-      leaderName: leaderPlayer.name || "القائد", // تمرير اسم القائد الحالي
+      leaderName: leaderPlayer.name || "القائد",
       score: p.score,
       numberRange: room.numberRange,
       totalHunters: room.players.length - 1,
@@ -280,7 +363,6 @@ function sendNextQuestion(socket) {
   const q = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
   socket.currentCorrectAnswer = q.correct;
 
-  // خلط الخيارات الأربعة عشوائياً
   const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
 
   socket.emit("sendTriviaQuestion", {
@@ -293,8 +375,10 @@ function endRound(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
-  // نقل دور القائد للاعب التالي
-  room.leaderIndex = (room.leaderIndex + 1) % room.players.length;
+  // التبديل للقائد التالي بأمان
+  if (room.players.length > 0) {
+    room.leaderIndex = (room.leaderIndex + 1) % room.players.length;
+  }
 
   io.to(roomId).emit("showTurnTransition", { countdown: 5 });
 
@@ -307,7 +391,6 @@ function handleGameOver(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
-  // ترتيب اللاعبين حسب النقاط
   const leaderboard = [...room.players].sort((a, b) => b.score - a.score);
 
   io.to(roomId).emit("gameOver", { leaderboard: leaderboard });

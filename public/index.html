@@ -21,12 +21,6 @@
                     <!-- إنشاء لعبة جديدة -->
                     <div class="main-option-box">
                         <h3>إنشاء لعبة جديدة</h3>
-                        <div class="form-group">
-                            <label for="input-players-count">عدد
-                                اللاعبين:</label>
-                            <input type="number" id="input-players-count"
-                                min="2" max="10" value="4">
-                        </div>
 
                         <div class="form-group">
                             <label for="input-numbers-range">نطاق الأرقام (بين
@@ -80,7 +74,7 @@
                 <div class="card">
                     <h3>قائمة اللاعبين المنضمين (<span
                             id="joined-count">1</span>/<span
-                            id="max-count">4</span>)</h3>
+                            id="max-count">15</span>)</h3>
                     <ul id="host-players-list" class="players-status-list">
                         <!-- تتولد عناصر الخانات الممتلئة والفاضية ديناميكياً عبر JS -->
                     </ul>
@@ -91,7 +85,8 @@
                         <h4>📜 تعليمات المضيف:</h4>
                         <ul
                             style="font-size: 0.9rem; padding-right: 20px; line-height: 1.6;">
-                            <li>انتظر اكتمال عدد اللاعبين واستعدادهم لتبدأ
+                            <li>الحد الأقصى للغرفة 15 لاعباً.</li>
+                            <li>يلزم وجود لاعبين اثنين على الأقل لبدء
                                 اللعبة.</li>
                             <li>ستتناوب الأدوار بين القائد والصيادين
                                 تلقائياً.</li>
@@ -125,22 +120,18 @@
                             placeholder="اكتب اسمك هنا..." required>
                     </div>
 
-                    <!-- صندوق قوانين السريعة للعب -->
+                    <!-- صندوق القوانين السريعة -->
                     <div class="rules-box card-sub"
                         style="margin-bottom: 15px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
                         <h4>📜 طريقة اللعب:</h4>
                         <ul
                             style="font-size: 0.85rem; padding-right: 20px; line-height: 1.5;">
-                            <li><strong>القائد:</strong> يختار الرقم المطلوب
-                                البحث عنه ويسعى
-                                للإجابة على أكبر قدر من الأسئله قبل أن يستطيع
-                                جميع اللاعبون من العثور على الرقم لكسب
-                                النقاط.</li>
+                            <li><strong>القائد:</strong> يختار الرقم ويسعى
+                                للإجابة على أكبر قدر من الأسئلة.</li>
                             <li><strong>الصياد:</strong> يبحث عن الرقم المطلوب
                                 في الشبكة بأسرع وقت.</li>
-                            <li>الذي يعثر على الرقم أولا يحصل على 10 نقاط الثاني
-                                7 نقاط الثالث 5 نقاط والبقية نقطتان ومن لم يعثر
-                                على الرقم لا يحصل نقاطًا</li>
+                            <li>أسرع صياد يحصل على 10 نقاط، والثاني 7، والثالث
+                                5، والبقية نقطتان.</li>
                             <li>احذر من الضغط الخاطئ لتجنب التجميد المؤقت!</li>
                         </ul>
                     </div>
@@ -183,7 +174,6 @@
 
                 <div id="leader-trivia-box" class="hidden">
                     <h3 id="trivia-question-text">جاري تحميل السؤال...</h3>
-
                     <div id="trivia-options-container" class="answers-grid">
                         <button id="btn-answer-1" class="btn-answer">خيار
                             1</button>
@@ -245,9 +235,10 @@
             </div>
         </div>
 
+        <!-- التعديل هنا: إضافة معرف للعنوان لإعادة التعيين الديناميكي -->
         <div id="overlay-turn-transition" class="overlay-view overlay">
             <div class="overlay-card card">
-                <h3>انتهى الدور الحالي! ⏳</h3>
+                <h3 id="turn-transition-title">انتهى الدور الحالي! ⏳</h3>
                 <p>جاري الانتقال للدور التالي خلال:</p>
                 <div id="countdown-timer" class="countdown-number"
                     style="font-size: 3rem; font-weight: bold; color: #38bdf8;">5</div>
