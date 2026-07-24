@@ -15,6 +15,33 @@ app.get("/", (req, res) => {
 
 const rooms = {};
 const triviaQuestions = require("./questions.json");
+// const triviaColors = [
+//   "black",
+//   "red",
+//   "yellow",
+//   "blue",
+//   "green",
+//   "pink",
+//   "orange",
+//   "white",
+//   "silver",
+//   "purple",
+// ];
+// مصفوفة الألوان المتاحة (يمكنك الإضافة والتعديل عليها بحرية)
+const COLOR_PALETTE = [
+  { name: "أحمر", code: "#ef4444" },
+  { name: "أزرق", code: "#3b82f6" },
+  { name: "أخضر", code: "#22c55e" },
+  { name: "أصفر", code: "#eab308" },
+  { name: "بنفسجي", code: "#a855f7" },
+  { name: "برتقالي", code: "#f97316" },
+  { name: "وردي", code: "#ec4899" },
+  { name: "أسود", code: "#0f172a" },
+  { name: "أبيض", code: "#f8fafc" },
+  { name: "رمادي", code: "#64748b" },
+  { name: "بني", code: "#78350f" },
+  { name: "سماوي", code: "#06b6d4" },
+];
 const MAX_ROOM_PLAYERS = 15; // الحد الأقصى للاعبين في أي غرفة
 
 io.on("connection", (socket) => {
@@ -364,15 +391,40 @@ function startRoundTimer(roomId) {
   }, 1000);
 }
 
+// الأسئله
+// function sendNextQuestion(socket) {
+//   const q = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
+//   socket.currentCorrectAnswer = q.correct;
+
+//   const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+
+//   socket.emit("sendTriviaQuestion", {
+//     question: q.question,
+//     options: shuffledOptions,
+//   });
+// }
+
+// بالألوان
 function sendNextQuestion(socket) {
-  const q = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
-  socket.currentCorrectAnswer = q.correct;
+  // 1. اختيار اللون الهدف عشوائياً
+  const targetColorObj =
+    COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
+  socket.currentCorrectAnswer = targetColorObj.name;
 
-  const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
+  // 2. اختيار لونين أخيرين عشوائيين مختلفين عن اللون الهدف
+  const otherColors = COLOR_PALETTE.filter(
+    (c) => c.name !== targetColorObj.name,
+  );
+  const shuffledOthers = [...otherColors].sort(() => Math.random() - 0.5);
 
+  // 3. دمج الألوان الثلاثة وخلطها
+  const selectedThree = [targetColorObj, shuffledOthers[0], shuffledOthers[1]];
+  const shuffledOptions = selectedThree.sort(() => Math.random() - 0.5);
+
+  // 4. إرسال السؤال مع كود اللون للعرض
   socket.emit("sendTriviaQuestion", {
-    question: q.question,
-    options: shuffledOptions,
+    targetColorCode: targetColorObj.code,
+    options: shuffledOptions.map((c) => ({ name: c.name, code: c.code })),
   });
 }
 

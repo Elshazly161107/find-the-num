@@ -310,30 +310,64 @@ socket.on("startHunting", (data) => {
   );
 });
 
+// بالأسئله
+// socket.on("sendTriviaQuestion", (questionData) => {
+//   isAnswering = false;
+//   const qText = document.getElementById("trivia-question-text");
+//   const optionsContainer = document.getElementById("trivia-options-container");
+
+//   if (qText) qText.innerText = questionData.question;
+
+//   if (optionsContainer) {
+//     optionsContainer.innerHTML = "";
+//     questionData.options.forEach((opt) => {
+//       const btn = document.createElement("button");
+//       btn.className = "btn-answer";
+//       btn.innerText = opt;
+//       btn.onclick = () => submitAnswer(opt);
+//       optionsContainer.appendChild(btn);
+//     });
+//   } else {
+//     questionData.options.forEach((opt, idx) => {
+//       const btn = document.getElementById(`btn-answer-${idx + 1}`);
+//       if (btn) {
+//         btn.innerText = opt;
+//         btn.onclick = () => submitAnswer(opt);
+//         btn.disabled = false;
+//       }
+//     });
+//   }
+// });
+
+// بالألوان
 socket.on("sendTriviaQuestion", (questionData) => {
   isAnswering = false;
-  const qText = document.getElementById("trivia-question-text");
+
+  const colorPreview = document.getElementById("color-preview-box");
   const optionsContainer = document.getElementById("trivia-options-container");
 
-  if (qText) qText.innerText = questionData.question;
+  // تطبيق اللون على مربع العرض
+  if (colorPreview) {
+    colorPreview.style.backgroundColor = questionData.targetColorCode;
+  }
 
   if (optionsContainer) {
     optionsContainer.innerHTML = "";
+
     questionData.options.forEach((opt) => {
       const btn = document.createElement("button");
-      btn.className = "btn-answer";
-      btn.innerText = opt;
-      btn.onclick = () => submitAnswer(opt);
-      optionsContainer.appendChild(btn);
-    });
-  } else {
-    questionData.options.forEach((opt, idx) => {
-      const btn = document.getElementById(`btn-answer-${idx + 1}`);
-      if (btn) {
-        btn.innerText = opt;
-        btn.onclick = () => submitAnswer(opt);
-        btn.disabled = false;
+      btn.className = "btn-color-option";
+      btn.innerText = ""; //opt.name
+      // إضافة شريط ملون صغير أو خلفية للزر لتسهيل الخيار
+      btn.style.backgroundColor = `${opt.code}`;
+      if (opt.code === "#f8fafc") {
+        btn.style.color = `#0f172a`;
+      } else {
+        btn.style.color = `#f8fafc`;
       }
+
+      btn.onclick = () => submitAnswer(opt.name);
+      optionsContainer.appendChild(btn);
     });
   }
 });
