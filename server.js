@@ -97,6 +97,8 @@ io.on("connection", (socket) => {
       players: room.players,
       maxPlayers: MAX_ROOM_PLAYERS,
     });
+
+    broadcastLiveLeaderboard(roomId);
   });
 
   // 4. بدء اللعبة
@@ -153,6 +155,7 @@ io.on("connection", (socket) => {
 
     if (isCorrect) {
       leader.score += 1;
+      broadcastLiveLeaderboard(roomId); // <--- أضف هنا
     }
 
     socket.emit("triviaResult", {
@@ -189,6 +192,8 @@ io.on("connection", (socket) => {
         pointsEarned: pointsEarned,
         newScore: hunter.score,
       });
+
+      broadcastLiveLeaderboard(roomId); // <--- أضف هنا
     }
 
     const leader = room.players[room.leaderIndex];
@@ -208,7 +213,6 @@ io.on("connection", (socket) => {
 
   // 8. التعامل الكامل مع خروج أو انقطاع اتصال اللاعب (Disconnect)
   socket.on("disconnect", () => {
-    // البحث عن الغرفة التي ينتمي إليها هذا الـ socket
     for (const roomId in rooms) {
       const room = rooms[roomId];
       const playerIndex = room.players.findIndex((p) => p.id === socket.id);
@@ -219,6 +223,9 @@ io.on("connection", (socket) => {
 
         // أ) إزالة اللاعب من الغرفة
         room.players.splice(playerIndex, 1);
+
+        // 🔥 تحديث لوحة الصدارة المباشرة فور خروج اللاعب لتستبعده عند البقية
+        broadcastLiveLeaderboard(roomId);
 
         // ب) إزالته من قائمة من وجدوا الرقم في الجولة الحالية إن وجد
         room.foundHunters = room.foundHunters.filter((id) => id !== socket.id);
@@ -257,10 +264,10 @@ io.on("connection", (socket) => {
           // إذا كان اللاعب المغادر هو "القائد" الحالي في الجولة:
           if (wasLeader) {
             clearInterval(room.timer);
-            // إعادة تعديل مؤشر القائد لئلا يتجاوز الحدود
-            if (room.leaderIndex >= room.players.length) {
-              room.leaderIndex = 0;
-            }
+
+            room.leaderIndex =
+              (playerIndex - 1 + room.players.length) % room.players.length;
+
             io.to(roomId).emit(
               "errorMsg",
               "انقطع اتصال القائد! جاري الانتقال للجولة التالية...",
@@ -270,7 +277,6 @@ io.on("connection", (socket) => {
           }
 
           // إذا كان الخارج "صياد":
-          // إذا تصادف أن خرج آخر صياد متبقٍ لم يجد الرقم، ننهي الجولة
           if (room.foundHunters.length >= room.players.length - 1) {
             clearInterval(room.timer);
             endRound(roomId);
@@ -287,7 +293,6 @@ io.on("connection", (socket) => {
           }
         } else {
           // إذا كانت اللعبة ما زالت في اللوبي:
-          // ضبط مؤشر القائد والتحديث للجميع
           if (room.leaderIndex >= room.players.length) {
             room.leaderIndex = 0;
           }
@@ -385,6 +390,18 @@ function endRound(roomId) {
   setTimeout(() => {
     startNewRound(roomId);
   }, 5000);
+}
+
+// دالة لبث لوحة الصدارة المباشرة لجميع أعضاء الغرفة
+function broadcastLiveLeaderboard(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+
+  const leaderboardData = room.players
+    .map((p) => ({ name: p.name, score: p.score }))
+    .sort((a, b) => b.score - a.score);
+
+  io.to(roomId).emit("updateLiveLeaderboard", leaderboardData);
 }
 
 function handleGameOver(roomId) {

@@ -7,6 +7,37 @@
         <link rel="stylesheet" href="style.css">
     </head>
     <body>
+        <!-- Floating Menu Container -->
+        <div class="floating-menu-container">
+            <button id="fab-main-btn" class="fab-btn" aria-label="القائمة">
+                ⚙️
+            </button>
+
+            <div id="fab-dropdown" class="fab-dropdown hidden">
+                <button id="open-leaderboard-btn" class="fab-item">
+                    🏆 لوحة الصدارة
+                </button>
+                <button id="toggle-audio-btn" class="fab-item">
+                    🔊 الصوت: مفعل
+                </button>
+            </div>
+        </div>
+
+        <!-- Modal لوحة الصدارة المباشرة -->
+        <div id="leaderboard-modal" class="modal-overlay hidden">
+            <div class="modal-content live-leadboard">
+                <div class="modal-header">
+                    <h2>🏆 لوحة الصدارة المباشرة</h2>
+                    <button id="close-modal-btn"
+                        class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <ul id="live-leaderboard-list" class="leaderboard-list">
+                        <!-- يتم تحميل أسماء ونقاط اللاعبين هنا ديناميكياً -->
+                    </ul>
+                </div>
+            </div>
+        </div>
 
         <!-- 1. الشاشة الرئيسية (إنشاء / انضمام) -->
         <div id="view-main" class="app-view active-view">

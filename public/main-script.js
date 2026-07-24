@@ -428,7 +428,7 @@ socket.on("gameOver", (data) => {
 });
 
 document.getElementById("btn-back-to-main")?.addEventListener("click", () => {
-  showScreen("mainMenu");
+  window.location.reload();
 });
 
 socket.on("promotedToHost", () => {
@@ -577,4 +577,101 @@ function renderHunterGrid(range, availableList, active, targetNumber = null) {
 
     gridContainer.appendChild(div);
   });
+}
+/* ==========================================
+   7. عناصر القائمة المنسدلة والـ Modal المباشرة
+   ========================================== */
+const fabMainBtn = document.getElementById("fab-main-btn");
+const fabDropdown = document.getElementById("fab-dropdown");
+const openLeaderboardBtn = document.getElementById("open-leaderboard-btn");
+const toggleAudioBtn = document.getElementById("toggle-audio-btn");
+const leaderboardModal = document.getElementById("leaderboard-modal");
+const closeModalBtn = document.getElementById("close-modal-btn");
+const liveLeaderboardList = document.getElementById("live-leaderboard-list");
+
+let isAudioMuted = false;
+let currentLivePlayers = []; // لتخزين اللاعبين القادمين مباشرة من السيرفر
+
+// 1. فتح/إغلاق القائمة المنسدلة عند النقر على الزر العائم
+fabMainBtn?.addEventListener("click", () => {
+  fabDropdown?.classList.toggle("hidden");
+});
+
+// 2. التحكم بـ كتم/تشغيل الصوت الفعلي (تعديل AudioFX)
+toggleAudioBtn?.addEventListener("click", () => {
+  isAudioMuted = !isAudioMuted;
+
+  if (isAudioMuted) {
+    toggleAudioBtn.textContent = "🔇 الصوت: مكتوم";
+    // تعطيل Web Audio API عند الكتم
+    if (AudioFX.ctx) AudioFX.ctx.suspend();
+  } else {
+    toggleAudioBtn.textContent = "🔊 الصوت: مفعل";
+    if (AudioFX.ctx) AudioFX.ctx.resume();
+  }
+});
+
+// تعديل بسيط على تشغيل الصوت للتأكد من حالة الكتم
+const originalInit = AudioFX.init.bind(AudioFX);
+AudioFX.init = function () {
+  if (isAudioMuted) return; // عدم التشغيل إذا كان الصوت مكتوماً
+  originalInit();
+};
+
+// 3. فتح نافذة لوحة الصدارة
+openLeaderboardBtn?.addEventListener("click", () => {
+  fabDropdown?.classList.add("hidden"); // إغلاق القائمة
+  leaderboardModal?.classList.remove("hidden"); // فتح الـ Modal
+  renderLiveLeaderboard(currentLivePlayers); // تحديث القائمة بالبيانات المباشرة
+});
+
+// 4. إغلاق الـ Modal
+closeModalBtn?.addEventListener("click", () => {
+  leaderboardModal?.classList.add("hidden");
+});
+
+// إغلاق Modal عند النقر خارجه
+leaderboardModal?.addEventListener("click", (e) => {
+  if (e.target === leaderboardModal) {
+    leaderboardModal.classList.add("hidden");
+  }
+});
+
+// 5. استقبال حدث السيرفر التلقائي للوحة الصدارة المباشرة
+socket.on("updateLiveLeaderboard", (playersData) => {
+  currentLivePlayers = playersData || [];
+
+  // إذا كانت النافذة مفتوحة حالياً، نقوم بتحديثها فوراً على الشاشة
+  if (leaderboardModal && !leaderboardModal.classList.contains("hidden")) {
+    renderLiveLeaderboard(currentLivePlayers);
+  }
+});
+
+// دالة رسم لوحة الصدارة المباشرة
+function renderLiveLeaderboard(players = []) {
+  if (!liveLeaderboardList) return;
+
+  if (players.length === 0) {
+    liveLeaderboardList.innerHTML = `
+      <li class="leaderboard-item" style="justify-content: center; opacity: 0.7;">
+        لا يوجد لاعبون حالياً...
+      </li>`;
+    return;
+  }
+
+  liveLeaderboardList.innerHTML = players
+    .map((player, index) => {
+      let rankBadge = `${index + 1}.`;
+      if (index === 0) rankBadge = "🥇";
+      else if (index === 1) rankBadge = "🥈";
+      else if (index === 2) rankBadge = "🥉";
+
+      return `
+        <li class="leaderboard-item">
+          <span class="player-name">${rankBadge} ${player.name}</span>
+          <span class="player-score">${player.score || 0} نقطة</span>
+        </li>
+      `;
+    })
+    .join("");
 }
