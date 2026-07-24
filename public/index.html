@@ -137,7 +137,7 @@
                 <h2>الانضمام للغرفة</h2>
                 <p class="room-code-wrapper">
                     رمز الغرفة: <strong
-                        id="display-player-room-code">----</strong>
+                        id="display-player-room-code">------</strong>
                 </p>
             </header>
 
@@ -271,6 +271,19 @@
                 <p>جاري الانتقال للدور التالي خلال:</p>
                 <div id="countdown-timer" class="countdown-number"
                     style="font-size: 3rem; font-weight: bold; color: #38bdf8;">5</div>
+            </div>
+        </div>
+
+        <!-- Overlay مرتبة الصياد عند إيجاد الرقم -->
+        <div id="overlay-rank" class="overlay">
+            <div class="overlay-card">
+                <div style="font-size: 3.5rem; margin-bottom: 10px;">🎯</div>
+                <h2 id="rank-display-text">حصلت على الرقم!</h2>
+                <p id="rank-points-text"
+                    style="color: #22c55e; font-size: 1.3rem; font-weight: bold; margin-top: 10px;"></p>
+                <p
+                    style="margin-top: 15px; opacity: 0.8; font-size: 0.95rem;">بانتظار
+                    انتهاء الجولة وباقي المتنافسين... ⏳</p>
             </div>
         </div>
 

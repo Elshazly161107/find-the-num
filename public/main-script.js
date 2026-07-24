@@ -134,6 +134,7 @@ const screens = {
 const overlays = {
   waitingPeers: document.getElementById("overlay-waiting-peers"),
   turnTransition: document.getElementById("overlay-turn-transition"),
+  rank: document.getElementById("overlay-rank"),
 };
 
 let currentRoomId = null;
@@ -359,7 +360,26 @@ socket.on("hunterEarnedPoints", (data) => {
       ? data.newScore
       : myCurrentScore + (data.pointsEarned || 0);
   updateScoreDisplays(myCurrentScore);
-  showOverlay("waitingPeers");
+
+  // تحديث نص المرتبة والنقاط
+  const rankTextElem = document.getElementById("rank-display-text");
+  const rankPointsElem = document.getElementById("rank-points-text");
+
+  if (rankTextElem) {
+    let rankBadge = `المركز ${data.rank}`;
+    if (data.rank === 1) rankBadge = "المركز الأول 🥇";
+    else if (data.rank === 2) rankBadge = "المركز الثاني 🥈";
+    else if (data.rank === 3) rankBadge = "المركز الثالث 🥉";
+
+    rankTextElem.innerText = `حصلت على الرقم في ${rankBadge}`;
+  }
+
+  if (rankPointsElem) {
+    rankPointsElem.innerText = `+${data.pointsEarned || 0} نقطة`;
+  }
+
+  // إظهار overlay المرتبة الجديدة بدلاً من overlay الانتظار العادية
+  showOverlay("rank");
 });
 
 socket.on("showTurnTransition", (data) => {

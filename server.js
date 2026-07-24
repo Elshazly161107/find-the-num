@@ -191,9 +191,10 @@ io.on("connection", (socket) => {
       socket.emit("hunterEarnedPoints", {
         pointsEarned: pointsEarned,
         newScore: hunter.score,
+        rank: rank, // <--- أضفنا المرتبة هنا
       });
 
-      broadcastLiveLeaderboard(roomId); // <--- أضف هنا
+      broadcastLiveLeaderboard(roomId);
     }
 
     const leader = room.players[room.leaderIndex];
@@ -204,7 +205,6 @@ io.on("connection", (socket) => {
       });
     }
 
-    // إنهاء الجولة إذا وجد جميع الصيادين المتبقين الرقم
     if (room.foundHunters.length >= room.players.length - 1) {
       clearInterval(room.timer);
       endRound(roomId);
