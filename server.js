@@ -19,23 +19,7 @@ app.get("/", (req, res) => {
 const rooms = {};
 
 // أسئلة Trivia مع 4 خيارات لكل سؤال
-const triviaQuestions = [
-  {
-    question: "كم عدد قارات العالم؟",
-    options: ["7", "5", "6", "8"],
-    correct: "7",
-  },
-  {
-    question: "ما هي عاصمة فرنسا؟",
-    options: ["باريس", "ليون", "مارسيليا", "نيس"],
-    correct: "باريس",
-  },
-  {
-    question: "أكبر كوكب في المجموعة الشمسية هو:",
-    options: ["المشتري", "زحل", "المريخ", "الأرض"],
-    correct: "المشتري",
-  },
-];
+const triviaQuestions = require("./questions.json");
 
 io.on("connection", (socket) => {
   // 1. إنشاء غرفة جديدة
