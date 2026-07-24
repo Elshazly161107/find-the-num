@@ -319,21 +319,30 @@ socket.on("startHunting", (data) => {
 socket.on("sendTriviaQuestion", (questionData) => {
   isAnswering = false;
   const qText = document.getElementById("trivia-question-text");
-  const btnAns1 = document.getElementById("btn-answer-1");
-  const btnAns2 = document.getElementById("btn-answer-2");
+  const optionsContainer = document.getElementById("trivia-options-container");
 
   if (qText) qText.innerText = questionData.question;
 
-  if (btnAns1 && questionData.options[0]) {
-    btnAns1.innerText = questionData.options[0];
-    btnAns1.onclick = () => submitAnswer(questionData.options[0]);
-    btnAns1.disabled = false;
-  }
-
-  if (btnAns2 && questionData.options[1]) {
-    btnAns2.innerText = questionData.options[1];
-    btnAns2.onclick = () => submitAnswer(questionData.options[1]);
-    btnAns2.disabled = false;
+  // إذا كان هناك حاوية للأزرار سنقوم بإعادة رسم الأزرار ديناميكياً
+  if (optionsContainer) {
+    optionsContainer.innerHTML = "";
+    questionData.options.forEach((opt) => {
+      const btn = document.createElement("button");
+      btn.className = "btn-answer";
+      btn.innerText = opt;
+      btn.onclick = () => submitAnswer(opt);
+      optionsContainer.appendChild(btn);
+    });
+  } else {
+    // في حال كنت تستخدم الأزرار الثابتة بالأيدي (IDs)
+    questionData.options.forEach((opt, idx) => {
+      const btn = document.getElementById(`btn-answer-${idx + 1}`);
+      if (btn) {
+        btn.innerText = opt;
+        btn.onclick = () => submitAnswer(opt);
+        btn.disabled = false;
+      }
+    });
   }
 });
 
@@ -515,8 +524,9 @@ function submitAnswer(selectedOption) {
   if (isAnswering) return;
   isAnswering = true;
 
-  document.getElementById("btn-answer-1").disabled = true;
-  document.getElementById("btn-answer-2").disabled = true;
+  // تعطيل كل أزرار الإجابات لمنع الضغط المتعدد
+  const allAnswerBtns = document.querySelectorAll(".btn-answer");
+  allAnswerBtns.forEach((btn) => (btn.disabled = true));
 
   socket.emit("answerTrivia", {
     roomId: currentRoomId,
