@@ -398,3 +398,32 @@ input:focus {
 .hidden {
     display: none !important;
 }
+
+.answers-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.btn-answer {
+    width: 100%;
+    padding: 12px 8px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: none;
+    background-color: #3b82f6;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.btn-answer:hover:not(:disabled) {
+    background-color: #2563eb;
+    transform: translateY(-2px);
+}
+
+.btn-answer:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
