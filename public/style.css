@@ -427,3 +427,62 @@ input:focus {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+/* my style not AI Gen */
+
+.room-code-wrapper {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    font-size: 15px;
+}
+
+.room-code-wrapper strong {
+    font-size: 20px;
+    padding: 5px;
+    color: var(--accent-yellow);
+    border: 1px solid var(--accent-yellow);
+    border-radius: 5px;
+    user-select: text;
+}
+
+.app-header {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.target-display {
+    margin-top: 25px;
+    margin-bottom: 25px;
+    font-size: 15px;
+}
+
+.target-display span {
+    font-size: 30px;
+    padding: 5px 10px;
+    color: var(--accent-yellow);
+    border: 1px solid var(--accent-yellow);
+    border-radius: 5px;
+}
+
+.rules-box {
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.rules-box h4 {
+    margin-bottom: 10px;
+}
+
+.rules-box ul {
+    font-size: 0.9rem;
+    padding-right: 20px;
+    line-height: 1.6;
+}
+
+.rules-box ul li {
+    margin-top: 5px;
+    font-weight: 300;
+}
