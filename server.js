@@ -159,7 +159,8 @@ io.on("connection", (socket) => {
     room.targetNumber = num;
     socket.emit("leaderNumberAccepted");
 
-    sendNextQuestion(socket);
+    // تعديل هنا: نمرر roomId و socket
+    sendNextQuestion(roomId, socket);
 
     io.to(roomId).emit("startHunting", {
       targetNumber: room.targetNumber,
@@ -178,11 +179,12 @@ io.on("connection", (socket) => {
     const leader = room.players[room.leaderIndex];
     if (!leader || leader.id !== socket.id) return;
 
-    const isCorrect = selectedOption === socket.currentCorrectAnswer;
+    // المقارنة مع الإجابة المحفوظة في الغرفة
+    const isCorrect = selectedOption === room.currentCorrectAnswer;
 
     if (isCorrect) {
-      leader.score += 2;
-      broadcastLiveLeaderboard(roomId); // <--- أضف هنا
+      leader.score += 1;
+      broadcastLiveLeaderboard(roomId);
     }
 
     socket.emit("triviaResult", {
@@ -190,8 +192,9 @@ io.on("connection", (socket) => {
       newScore: leader.score,
     });
 
+    // توليد السؤال التالي إذا كان الوقت المتبقي أكبر من 0
     if (room.timeLeft > 0) {
-      sendNextQuestion(socket);
+      sendNextQuestion(roomId, socket);
     }
   });
 
@@ -405,13 +408,18 @@ function startRoundTimer(roomId) {
 // }
 
 // بالألوان
-function sendNextQuestion(socket) {
+function sendNextQuestion(roomId, leaderSocket) {
+  const room = rooms[roomId];
+  if (!room) return;
+
   // 1. اختيار اللون الهدف عشوائياً
   const targetColorObj =
     COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
-  socket.currentCorrectAnswer = targetColorObj.name;
 
-  // 2. اختيار لونين أخيرين عشوائيين مختلفين عن اللون الهدف
+  // حفظ الإجابة الصحيحة داخل الغرفة نفسها بدلاً من الـ socket
+  room.currentCorrectAnswer = targetColorObj.name;
+
+  // 2. اختيار لونين أخيرين عشوائيين مختلفين
   const otherColors = COLOR_PALETTE.filter(
     (c) => c.name !== targetColorObj.name,
   );
@@ -421,8 +429,8 @@ function sendNextQuestion(socket) {
   const selectedThree = [targetColorObj, shuffledOthers[0], shuffledOthers[1]];
   const shuffledOptions = selectedThree.sort(() => Math.random() - 0.5);
 
-  // 4. إرسال السؤال مع كود اللون للعرض
-  socket.emit("sendTriviaQuestion", {
+  // 4. إرسال السؤال للقائد
+  leaderSocket.emit("sendTriviaQuestion", {
     targetColorCode: targetColorObj.code,
     options: shuffledOptions.map((c) => ({ name: c.name, code: c.code })),
   });
