@@ -187,7 +187,7 @@ document.getElementById("btn-create-game")?.addEventListener("click", () => {
 document.getElementById("btn-join-game")?.addEventListener("click", () => {
   AudioFX.init();
   const roomInput = document.getElementById("input-room-id")?.value.trim();
-  if (!roomInput) return alert("يرجى إدخال رمز الغرفة!");
+  if (!roomInput) return showToast("يرجى إدخال رمز الغرفة!", "error");
 
   currentRoomId = roomInput;
   socket.emit("joinRoom", { roomId: roomInput });
@@ -203,8 +203,27 @@ document.getElementById("btn-player-ready")?.addEventListener("click", () => {
   const readyBtn = document.getElementById("btn-player-ready");
   if (readyBtn) {
     readyBtn.disabled = true;
-    readyBtn.innerText = "في انتظار بدء اللعبة... ⏳";
+    readyBtn.innerText = "جاري التحقق... ⏳";
   }
+});
+
+socket.on("errorMsg", (msg) => {
+  AudioFX.playWrong();
+  showToast(msg, "error"); // 👈 استخدام التوست بدلاً من alert
+
+  const readyBtn = document.getElementById("btn-player-ready");
+  if (readyBtn && readyBtn.innerText.includes("جاري التحقق")) {
+    readyBtn.disabled = false;
+    readyBtn.innerText = "أنا مستعد 👍";
+  }
+});
+
+socket.on("playerLeftMsg", (msg) => {
+  showToast(msg, "error");
+});
+
+socket.on("promotedToHost", () => {
+  showToast("لقد أصبحت المضيف الحالي للغرفة! 👑", "success");
 });
 
 document
@@ -218,7 +237,7 @@ document
   ?.addEventListener("click", () => {
     const numInput = document.getElementById("input-chosen-number");
     const chosenNum = numInput?.value.trim();
-    if (!chosenNum) return alert("يرجى كتابة رقم أولاً!");
+    if (!chosenNum) return showToast("يرجى كتابة رقم أولاً!", "error");
 
     socket.emit("submitLeaderNumber", {
       roomId: currentRoomId,
@@ -420,7 +439,9 @@ socket.on("showTurnTransition", (data) => {
   hideOverlays();
 
   const turnTitle = document.getElementById("turn-transition-title");
-  if (turnTitle) turnTitle.innerText = "انتهى الدور الحالي! ⏳";
+  if (turnTitle) {
+    turnTitle.innerText = "انتهى الدور الحالي! ⏳";
+  }
 
   showOverlay("turnTransition");
 
@@ -486,12 +507,12 @@ document.getElementById("btn-back-to-main")?.addEventListener("click", () => {
 });
 
 socket.on("promotedToHost", () => {
-  alert("لقد أصبحت المضيف الحالي للغرفة! 👑");
+  showToast("لقد أصبحت المضيف الحالي للغرفة! 👑", "error");
 });
 
 socket.on("errorMsg", (msg) => {
   AudioFX.playWrong();
-  alert(msg);
+  showToast(msg, "error");
 });
 
 socket.on("playerLeftMsg", (msg) => {
@@ -612,7 +633,11 @@ function renderHunterGrid(range, availableList, active, targetNumber = null) {
 
           if (num === targetNumber) {
             div.classList.add("circled");
-            socket.emit("hunterFoundNumber", { roomId: currentRoomId });
+            // إرسال الرقم المخمن للسيرفر ليتحقق منه بنفسه
+            socket.emit("hunterFoundNumber", {
+              roomId: currentRoomId,
+              guessedNumber: num,
+            });
           } else {
             AudioFX.playWrong();
             div.classList.add("circled-wrong");
@@ -620,7 +645,7 @@ function renderHunterGrid(range, availableList, active, targetNumber = null) {
             isCooldown = true;
             setTimeout(() => {
               isCooldown = false;
-            }, 1000);
+            }, 2000);
           }
         };
       }
@@ -632,6 +657,22 @@ function renderHunterGrid(range, availableList, active, targetNumber = null) {
     gridContainer.appendChild(div);
   });
 }
+
+function showToast(message, type = "error") {
+  const container = document.getElementById("toast-container");
+  if (!container) return;
+
+  const toast = document.createElement("div");
+  toast.className = `toast-msg ${type}`;
+  toast.innerText = message;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
 /* ==========================================
    7. عناصر القائمة المنسدلة والـ Modal المباشرة
    ========================================== */

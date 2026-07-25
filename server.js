@@ -29,18 +29,17 @@ const triviaQuestions = require("./questions.json");
 // ];
 // مصفوفة الألوان المتاحة (يمكنك الإضافة والتعديل عليها بحرية)
 const COLOR_PALETTE = [
-  { name: "أحمر", code: "#ef4444" },
-  { name: "أزرق", code: "#3b82f6" },
-  { name: "أخضر", code: "#22c55e" },
-  { name: "أصفر", code: "#eab308" },
-  { name: "بنفسجي", code: "#a855f7" },
-  { name: "برتقالي", code: "#f97316" },
-  { name: "وردي", code: "#ec4899" },
-  { name: "أسود", code: "#0f172a" },
-  { name: "أبيض", code: "#f8fafc" },
-  { name: "رمادي", code: "#64748b" },
-  { name: "بني", code: "#78350f" },
-  { name: "سماوي", code: "#06b6d4" },
+  { name: "أحمر", code: "#ff0000" },
+  { name: "أزرق", code: "#0062ff" },
+  { name: "أخضر", code: "#00ff5e" },
+  { name: "أصفر", code: "#ffcd38" },
+  { name: "بنفسجي", code: "#8400ff" },
+  { name: "برتقالي", code: "#ed6300" },
+  { name: "وردي", code: "#ff0080" },
+  { name: "أسود", code: "#000000" },
+  { name: "أبيض", code: "#ffffff" },
+  { name: "رمادي", code: "#939496" },
+  { name: "بني", code: "#592100" },
 ];
 const MAX_ROOM_PLAYERS = 15; // الحد الأقصى للاعبين في أي غرفة
 
@@ -60,6 +59,7 @@ io.on("connection", (socket) => {
       targetNumber: null,
       foundHunters: [],
       timer: null,
+      roundTimeout: null, // 👈 أضفنا هذا السطر لإلغاء المؤقتات لاحقاً
       timeLeft: 30,
       isGameStarted: false,
     };
@@ -100,23 +100,45 @@ io.on("connection", (socket) => {
     socket.emit("joinedRoom", { roomId: roomId });
   });
 
-  // 3. تجهيز الاسم والاستعداد
+  // 3. تجهيز الاسم والاستعداد (بعد الحماية والتأكد من عدم التكرار)
   socket.on("playerReady", ({ roomId, name }) => {
     const room = rooms[roomId];
     if (!room) return;
+
+    // 🔒 1. تطهير الاسم وحذف الرموز والوسوم الخطيرة لدرء ثغرات XSS
+    let cleanName = (name || "لاعب")
+      .toString()
+      .trim()
+      .replace(/<[^>]*>?/gm, ""); // إزالة أي وسوم HTML
+
+    if (cleanName.length === 0) cleanName = "لاعب";
+    if (cleanName.length > 15) cleanName = cleanName.substring(0, 15); // تحديد أقصى طول للاسم
+
+    // 🔒 2. التحقق من عدم تكرار الاسم داخل نفس الغرفة للاعبين الآخرين
+    const isNameTaken = room.players.some(
+      (p) =>
+        p.id !== socket.id && p.name.toLowerCase() === cleanName.toLowerCase(),
+    );
+
+    if (isNameTaken) {
+      return socket.emit(
+        "errorMsg",
+        "هذا الاسم مستخدم بالفعل في الغرفة، اختر اسماً آخر!",
+      );
+    }
 
     let player = room.players.find((p) => p.id === socket.id);
     if (!player) {
       player = {
         id: socket.id,
-        name: name || "لاعب",
+        name: cleanName,
         isHost: false,
         isReady: true,
         score: 0,
       };
       room.players.push(player);
     } else {
-      player.name = name || player.name;
+      player.name = cleanName;
       player.isReady = true;
     }
 
@@ -183,7 +205,7 @@ io.on("connection", (socket) => {
     const isCorrect = selectedOption === room.currentCorrectAnswer;
 
     if (isCorrect) {
-      leader.score += 1;
+      leader.score++;
       broadcastLiveLeaderboard(roomId);
     }
 
@@ -198,11 +220,22 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 7. صيد الرقم بواسطة الصياد
-  socket.on("hunterFoundNumber", ({ roomId }) => {
+  // 7. صيد الرقم بواسطة الصياد (بعد التأمين)
+  socket.on("hunterFoundNumber", ({ roomId, guessedNumber }) => {
     const room = rooms[roomId];
-    if (!room) return;
+    if (!room || !room.isGameStarted) return;
 
+    // 🔒 التحقق 1: التأكد من أن اللاعب هو صياد وليس القائد
+    const leader = room.players[room.leaderIndex];
+    if (leader && leader.id === socket.id) return;
+
+    // 🔒 التحقق 2: التأكد من أن الرقم المخمن طابق الرقم المطلوب فعلياً
+    const num = parseInt(guessedNumber);
+    if (isNaN(num) || num !== room.targetNumber) {
+      return socket.emit("errorMsg", "إجابة خاطئة أو تلاعب في الطلب!");
+    }
+
+    // 🔒 التحقق 3: عدم تكرار تسجيل اللاعب إذا كان قد وجده سابقاً
     if (room.foundHunters.includes(socket.id)) return;
     room.foundHunters.push(socket.id);
 
@@ -221,13 +254,12 @@ io.on("connection", (socket) => {
       socket.emit("hunterEarnedPoints", {
         pointsEarned: pointsEarned,
         newScore: hunter.score,
-        rank: rank, // <--- أضفنا المرتبة هنا
+        rank: rank,
       });
 
       broadcastLiveLeaderboard(roomId);
     }
 
-    const leader = room.players[room.leaderIndex];
     if (leader) {
       io.to(leader.id).emit("updateHuntersProgress", {
         totalHunters: room.players.length - 1,
@@ -262,7 +294,8 @@ io.on("connection", (socket) => {
 
         // جـ) إذا أصبحت الغرفة فارغة تماماً، حذف الغرفة وإلغاء المؤقت
         if (room.players.length === 0) {
-          clearInterval(room.timer);
+          if (room.timer) clearInterval(room.timer);
+          if (room.roundTimeout) clearTimeout(room.roundTimeout); // 🔒 تنظيف مؤقت الجولات
           delete rooms[roomId];
           break;
         }
@@ -440,6 +473,9 @@ function endRound(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
+  // إيقاف مؤقت الثواني للجولة الحالية إن وجد
+  if (room.timer) clearInterval(room.timer);
+
   // التبديل للقائد التالي بأمان
   if (room.players.length > 0) {
     room.leaderIndex = (room.leaderIndex + 1) % room.players.length;
@@ -447,8 +483,15 @@ function endRound(roomId) {
 
   io.to(roomId).emit("showTurnTransition", { countdown: 5 });
 
-  setTimeout(() => {
-    startNewRound(roomId);
+  // إلغاء أي انتقالات سابقة معلقة إن وجدت
+  if (room.roundTimeout) clearTimeout(room.roundTimeout);
+
+  // تخزين مرجع الـ Timeout
+  room.roundTimeout = setTimeout(() => {
+    // التأكد التام من أن الغرفة ما زالت قائمة قبل بدء الجولة
+    if (rooms[roomId]) {
+      startNewRound(roomId);
+    }
   }, 5000);
 }
 
@@ -467,6 +510,9 @@ function broadcastLiveLeaderboard(roomId) {
 function handleGameOver(roomId) {
   const room = rooms[roomId];
   if (!room) return;
+
+  if (room.timer) clearInterval(room.timer);
+  if (room.roundTimeout) clearTimeout(room.roundTimeout); // 🔒 تنظيف مؤقت الجولات
 
   const leaderboard = [...room.players].sort((a, b) => b.score - a.score);
 

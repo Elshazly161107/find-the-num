@@ -146,7 +146,8 @@
                     <h3>أدخل اسمك للتجهيز</h3>
                     <div class="form-group">
                         <input type="text" id="input-player-name"
-                            placeholder="اكتب اسمك هنا..." required>
+                            placeholder="الحد الأقصى 15 حرف" value="لاعب"
+                            required>
                     </div>
 
                     <!-- صندوق القوانين السريعة -->
@@ -302,6 +303,9 @@
                     انتهاء الجولة وباقي المتنافسين... ⏳</p>
             </div>
         </div>
+
+        <!-- حاوية التنبيهات المنبثقة (Toast Container) -->
+        <div id="toast-container" class="toast-container"></div>
 
         <!-- Socket.io والسكربت الرئيسي -->
         <script src="/socket.io/socket.io.js"></script>
