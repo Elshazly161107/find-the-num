@@ -181,7 +181,7 @@ io.on("connection", (socket) => {
     const isCorrect = selectedOption === socket.currentCorrectAnswer;
 
     if (isCorrect) {
-      leader.score += 1;
+      leader.score += 2;
       broadcastLiveLeaderboard(roomId); // <--- أضف هنا
     }
 
