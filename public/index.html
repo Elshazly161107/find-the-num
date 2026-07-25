@@ -20,6 +20,9 @@
                 <button id="toggle-audio-btn" class="fab-item">
                     🔊 الصوت: مفعل
                 </button>
+                <button id="open-tutorial-btn" class="fab-item">
+                    🎥 فيديو الشرح
+                </button>
             </div>
         </div>
 
@@ -301,6 +304,28 @@
                 <p
                     style="margin-top: 15px; opacity: 0.8; font-size: 0.95rem;">بانتظار
                     انتهاء الجولة وباقي المتنافسين... ⏳</p>
+            </div>
+        </div>
+
+        <div id="tutorial-overlay"
+            class="modal-overlay hidden tutorial-modal-overlay">
+            <div class="modal-content tutorial-card">
+                <div class="modal-header">
+                    <h2>🎥 شرح طريقة اللعب</h2>
+                    <button id="close-tutorial-btn"
+                        class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body video-container">
+                    <!-- استبدال YOUR_VIDEO_ID بمعرف الفيديو الخاص بك من يوتيوب -->
+                    <iframe
+                        id="tutorial-iframe"
+                        src
+                        title="شرح اللعبة"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen>
+                    </iframe>
+                </div>
             </div>
         </div>
 

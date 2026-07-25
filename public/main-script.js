@@ -770,3 +770,53 @@ function renderLiveLeaderboard(players = []) {
     })
     .join("");
 }
+
+/* ==========================================
+   التحكم بـ Overlay فيديو الشرح (Local Storage)
+   ========================================== */
+const YOUTUBE_VIDEO_ID = "09EO3MiPlgM"; // 👈 ضع هنا معرف فيديو يوتيوب الخاص بك
+const YOUTUBE_URL = `https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?autoplay=1`;
+
+const tutorialOverlay = document.getElementById("tutorial-overlay");
+const openTutorialBtn = document.getElementById("open-tutorial-btn");
+const closeTutorialBtn = document.getElementById("close-tutorial-btn");
+const tutorialIframe = document.getElementById("tutorial-iframe");
+
+// دالة فتح فيديو الشرح
+function showTutorial() {
+  if (!tutorialOverlay || !tutorialIframe) return;
+  tutorialIframe.src = YOUTUBE_URL;
+  tutorialOverlay.classList.remove("hidden");
+}
+
+// دالة إغلاق فيديو الشرح وإيقاف التشغيل
+function hideTutorial() {
+  if (!tutorialOverlay || !tutorialIframe) return;
+  tutorialOverlay.classList.add("hidden");
+  tutorialIframe.src = ""; // إيقاف الصوت/الفيديو فور الإغلاق
+}
+
+// 1. الفحص الآلي عند دخول الموقع (يظهر مرة واحدة فقط في الحياة)
+document.addEventListener("DOMContentLoaded", () => {
+  const hasSeenTutorial = localStorage.getItem("hasSeenGameTutorial");
+
+  if (!hasSeenTutorial) {
+    showTutorial();
+    localStorage.setItem("hasSeenGameTutorial", "true");
+  }
+});
+
+// 2. زر الفتح المباشر من قائمة الإعدادات العلويّة
+openTutorialBtn?.addEventListener("click", () => {
+  fabDropdown?.classList.add("hidden");
+  showTutorial();
+});
+
+// 3. أحداث الإغلاق (عند الضغط على X أو الخروج)
+closeTutorialBtn?.addEventListener("click", hideTutorial);
+
+tutorialOverlay?.addEventListener("click", (e) => {
+  if (e.target === tutorialOverlay) {
+    hideTutorial();
+  }
+});
