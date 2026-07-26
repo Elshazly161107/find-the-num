@@ -460,46 +460,30 @@ socket.on("showTurnTransition", (data) => {
 });
 
 socket.on("gameOver", (data) => {
-  hideOverlays();
-  AudioFX.playCorrect();
-  launchConfetti();
+  // ... تجهيز شاشة النتيجة ...
 
-  const leaderboardList = document.getElementById("leaderboard-list");
-  if (!leaderboardList) return;
-  leaderboardList.innerHTML = "";
-
-  const leaderboard = data?.leaderboard || [];
-
-  leaderboard.sort((a, b) => (b.score || 0) - (a.score || 0));
+  const leaderboard = data.leaderboard || [];
 
   leaderboard.forEach((player, index) => {
-    const item = document.createElement("div");
+    const item = document.createElement("li");
 
-    let rankBadge = `${index + 1}`;
     let rankClass = "";
+    if (index === 0) rankClass = "rank-1";
+    else if (index === 1) rankClass = "rank-2";
+    else if (index === 2) rankClass = "rank-3";
 
-    if (index === 0) {
-      rankBadge = "🥇";
-      rankClass = "rank-1";
-    } else if (index === 1) {
-      rankBadge = "🥈";
-      rankClass = "rank-2";
-    } else if (index === 2) {
-      rankBadge = "🥉";
-      rankClass = "rank-3";
-    }
+    // 👈 إضافة كلاس disconnected للمنقطعين
+    const disconnectedClass = player.isDisconnected ? "disconnected" : "";
+    item.className =
+      `leaderboard-item ${rankClass} ${disconnectedClass}`.trim();
 
-    item.className = `leaderboard-item ${rankClass}`;
     item.innerHTML = `
-      <span class="leaderboard-rank">${rankBadge}</span>
-      <span class="leaderboard-name">${player.name || "لاعب"}</span>
-      <span class="leaderboard-score">${player.score || 0} نقطة</span>
+      <span class="player-name">${index + 1}. ${player.name}</span>
+      <span class="player-score">${player.score || 0} نقطة</span>
     `;
 
-    leaderboardList.appendChild(item);
+    finalLeaderboardList.appendChild(item);
   });
-
-  showScreen("leaderboard");
 });
 
 document.getElementById("btn-back-to-main")?.addEventListener("click", () => {
@@ -742,7 +726,6 @@ socket.on("updateLiveLeaderboard", (playersData) => {
   }
 });
 
-// دالة رسم لوحة الصدارة المباشرة
 function renderLiveLeaderboard(players = []) {
   if (!liveLeaderboardList) return;
 
@@ -761,8 +744,11 @@ function renderLiveLeaderboard(players = []) {
       else if (index === 1) rankBadge = "🥈";
       else if (index === 2) rankBadge = "🥉";
 
+      // 👈 إضافة كلاس disconnected إذا كان اللاعب منقطعاً
+      const disconnectedClass = player.isDisconnected ? "disconnected" : "";
+
       return `
-        <li class="leaderboard-item">
+        <li class="leaderboard-item ${disconnectedClass}">
           <span class="player-name">${rankBadge} ${player.name}</span>
           <span class="player-score">${player.score || 0} نقطة</span>
         </li>

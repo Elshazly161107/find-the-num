@@ -54,6 +54,7 @@ io.on("connection", (socket) => {
       maxPlayers: MAX_ROOM_PLAYERS,
       numberRange: rangeNum,
       players: [],
+      disconnectedPlayers: [],
       availableNumbers: Array.from({ length: rangeNum }, (_, i) => i + 1),
       leaderIndex: 0,
       targetNumber: null,
@@ -283,24 +284,41 @@ io.on("connection", (socket) => {
         const disconnectedPlayer = room.players[playerIndex];
         const wasLeader = room.leaderIndex === playerIndex;
 
-        // أ) إزالة اللاعب من الغرفة
-        room.players.splice(playerIndex, 1);
+        // 🔥 إضافة أوبجيكت بسيط بالاسم والنقاط فقط إلى قائمة المنقطعين
+        if (!room.disconnectedPlayers) room.disconnectedPlayers = [];
 
-        // 🔥 تحديث لوحة الصدارة المباشرة فور خروج اللاعب لتستبعده عند البقية
-        broadcastLiveLeaderboard(roomId);
+        // فحص إذا كان اسم اللاعب متواجد سابقاً لحفظ أحدث نقاط وصل إليها
+        const existingDiscIdx = room.disconnectedPlayers.findIndex(
+          (p) => p.name === disconnectedPlayer.name,
+        );
+        if (existingDiscIdx !== -1) {
+          room.disconnectedPlayers[existingDiscIdx].score =
+            disconnectedPlayer.score;
+        } else {
+          room.disconnectedPlayers.push({
+            name: disconnectedPlayer.name,
+            score: disconnectedPlayer.score,
+            isDisconnected: true,
+          });
+        }
+
+        // أ) إزالة اللاعب من الغرفة المباشرة
+        room.players.splice(playerIndex, 1);
 
         // ب) إزالته من قائمة من وجدوا الرقم في الجولة الحالية إن وجد
         room.foundHunters = room.foundHunters.filter((id) => id !== socket.id);
 
+        // 🔥 تحديث لوحة الصدارة المباشرة فوراً بعد دمج المنقطعين
+        broadcastLiveLeaderboard(roomId);
+
         // جـ) إذا أصبحت الغرفة فارغة تماماً، حذف الغرفة وإلغاء المؤقت
         if (room.players.length === 0) {
           if (room.timer) clearInterval(room.timer);
-          if (room.roundTimeout) clearTimeout(room.roundTimeout); // 🔒 تنظيف مؤقت الجولات
-          delete rooms[roomId];
+          if (room.roundTimeout) clearTimeout(room.roundTimeout);
           break;
         }
 
-        // د) نقل الملكية (Host) إذا خرج المضيف وكان هناك لاعبون آخرون
+        // د) نقل الملكية (Host) إذا خرج المضيف
         if (disconnectedPlayer.isHost && room.players.length > 0) {
           room.players[0].isHost = true;
           io.to(room.players[0].id).emit("promotedToHost");
@@ -314,7 +332,6 @@ io.on("connection", (socket) => {
 
         // هـ) إذا كانت اللعبة قد بدأت بالفعل:
         if (room.isGameStarted) {
-          // إذا كان متبقي أقل من 2 لاعبين، تنهى اللعبة فوراً
           if (room.players.length < 2) {
             clearInterval(room.timer);
             io.to(roomId).emit(
@@ -324,13 +341,10 @@ io.on("connection", (socket) => {
             return handleGameOver(roomId);
           }
 
-          // إذا كان اللاعب المغادر هو "القائد" الحالي في الجولة:
           if (wasLeader) {
             clearInterval(room.timer);
-
             room.leaderIndex =
               (playerIndex - 1 + room.players.length) % room.players.length;
-
             io.to(roomId).emit(
               "errorMsg",
               "انقطع اتصال القائد! جاري الانتقال للجولة التالية...",
@@ -339,13 +353,11 @@ io.on("connection", (socket) => {
             break;
           }
 
-          // إذا كان الخارج "صياد":
           if (room.foundHunters.length >= room.players.length - 1) {
             clearInterval(room.timer);
             endRound(roomId);
             break;
           } else {
-            // تحديث مؤشر تقدم الصيادين لدى القائد
             const currentLeader = room.players[room.leaderIndex];
             if (currentLeader) {
               io.to(currentLeader.id).emit("updateHuntersProgress", {
@@ -355,7 +367,6 @@ io.on("connection", (socket) => {
             }
           }
         } else {
-          // إذا كانت اللعبة ما زالت في اللوبي:
           if (room.leaderIndex >= room.players.length) {
             room.leaderIndex = 0;
           }
@@ -495,26 +506,51 @@ function endRound(roomId) {
   }, 5000);
 }
 
-// دالة لبث لوحة الصدارة المباشرة لجميع أعضاء الغرفة
+// دالة بث الليد بورد المباشرة
 function broadcastLiveLeaderboard(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
-  const leaderboardData = room.players
-    .map((p) => ({ name: p.name, score: p.score }))
-    .sort((a, b) => b.score - a.score);
+  const activePlayers = room.players.map((p) => ({
+    name: p.name,
+    score: p.score,
+    isDisconnected: false,
+  }));
+
+  const disconnected = (room.disconnectedPlayers || []).map((p) => ({
+    ...p,
+    isDisconnected: true,
+  }));
+
+  const leaderboardData = [...activePlayers, ...disconnected].sort(
+    (a, b) => b.score - a.score,
+  );
 
   io.to(roomId).emit("updateLiveLeaderboard", leaderboardData);
 }
 
+// دالة إنهاء اللعبة والنتيجة النهائية
 function handleGameOver(roomId) {
   const room = rooms[roomId];
   if (!room) return;
 
   if (room.timer) clearInterval(room.timer);
-  if (room.roundTimeout) clearTimeout(room.roundTimeout); // 🔒 تنظيف مؤقت الجولات
+  if (room.roundTimeout) clearTimeout(room.roundTimeout);
 
-  const leaderboard = [...room.players].sort((a, b) => b.score - a.score);
+  const activePlayers = room.players.map((p) => ({
+    name: p.name,
+    score: p.score,
+    isDisconnected: false,
+  }));
+
+  const disconnected = (room.disconnectedPlayers || []).map((p) => ({
+    ...p,
+    isDisconnected: true,
+  }));
+
+  const leaderboard = [...activePlayers, ...disconnected].sort(
+    (a, b) => b.score - a.score,
+  );
 
   io.to(roomId).emit("gameOver", { leaderboard: leaderboard });
   delete rooms[roomId];
