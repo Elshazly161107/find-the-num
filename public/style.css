@@ -898,6 +898,41 @@ input:focus {
 
 /* my style not AI Gen */
 
+#view-main .bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+}
+
+#view-main .bg img {
+    height: 100%;
+    opacity: 3%;
+    animation: entranceAnim 4s infinite ease-in-out;
+}
+
+@media (max-width: 1130px) {
+    #view-main .bg {
+        justify-content: center;
+    }
+}
+
+@keyframes entranceAnim {
+
+    0%,
+    100% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-12px);
+    }
+}
+
 .room-code-wrapper {
     margin-top: 15px;
     margin-bottom: 15px;
