@@ -46,7 +46,7 @@ const MAX_ROOM_PLAYERS = 15; // الحد الأقصى للاعبين في أي �
 io.on("connection", (socket) => {
   // 1. إنشاء غرفة جديدة (تم إلغاء تحديد عدد اللاعبين من المضيف)
   socket.on("createGame", ({ numberRange }) => {
-    const roomId;
+    let roomId;
     // توليد رقم غرفة فريد لضمان عدم وجود غرفة سابقة بنفس المعرف
     do {
       roomId = Math.floor(100000 + Math.random() * 900000).toString();
