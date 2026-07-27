@@ -75,7 +75,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 25px;
-    max-width: calc(100% - 25px);
 }
 
 @keyframes fadeIn {

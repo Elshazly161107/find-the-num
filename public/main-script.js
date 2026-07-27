@@ -460,26 +460,36 @@ socket.on("showTurnTransition", (data) => {
 });
 
 socket.on("gameOver", (data) => {
-  // ... تجهيز شاشة النتيجة ...
+  hideOverlays();
+
+  // 1. التبديل إلى شاشة لوحة الصدارة النهائية
+  showScreen("leaderboard");
+
+  const finalLeaderboardList = document.getElementById("leaderboard-list");
+  if (!finalLeaderboardList) return;
+
+  // 2. تفريغ القائمة من أي بيانات سابقة
+  finalLeaderboardList.innerHTML = "";
 
   const leaderboard = data.leaderboard || [];
 
+  // 3. بناء وتعبئة القائمة بالعناصر
   leaderboard.forEach((player, index) => {
-    const item = document.createElement("li");
+    const item = document.createElement("div"); // التغيير إلى div ليتناسب مع تنسيق CSS الخاص بك
 
     let rankClass = "";
     if (index === 0) rankClass = "rank-1";
     else if (index === 1) rankClass = "rank-2";
     else if (index === 2) rankClass = "rank-3";
 
-    // 👈 إضافة كلاس disconnected للمنقطعين
     const disconnectedClass = player.isDisconnected ? "disconnected" : "";
     item.className =
       `leaderboard-item ${rankClass} ${disconnectedClass}`.trim();
 
     item.innerHTML = `
-      <span class="player-name">${index + 1}. ${player.name}</span>
-      <span class="player-score">${player.score || 0} نقطة</span>
+      <span class="leaderboard-rank">${index + 1}.</span>
+      <span class="leaderboard-name">${player.name}</span>
+      <span class="leaderboard-score">${player.score || 0} نقطة</span>
     `;
 
     finalLeaderboardList.appendChild(item);
